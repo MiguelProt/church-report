@@ -34,7 +34,7 @@ Copia `.env.example` como `.env`, pega la URL `/exec` y ejecuta `npm run build`.
 
 Puedes probar el frontend abriendo `index.html` mediante un servidor local. El formulario conserva automáticamente un borrador en el navegador.
 
-El envío usa `no-cors` porque las respuestas de `ContentService` de Apps Script no se pueden leer de forma fiable desde un origen estático distinto. El navegador confirma que la solicitud fue enviada, pero la confirmación definitiva del guardado se realiza en las pestañas `Reportes` y `Asuntos` de Sheets.
+El envío usa `no-cors` porque las respuestas POST de `ContentService` de Apps Script no se pueden leer de forma fiable desde un origen estático distinto. Cada envío incluye un `requestId` único y el frontend consulta su estado mediante JSONP. El borrador solo se elimina después de recibir una confirmación real de Apps Script; los errores de Sheets se muestran en la interfaz y conservan los datos capturados.
 
 ## 3. Publicar en GitHub Pages
 

@@ -7,6 +7,8 @@ const saveStatus = document.querySelector("#saveStatus");
 const toast = document.querySelector("#toast");
 let toastTimer;
 let draftTimer;
+const STATUS_POLL_INTERVAL = 1000;
+const STATUS_POLL_ATTEMPTS = 30;
 
 const fields = ["subject", "challenges", "actions", "results", "resources", "helpers", "notes"];
 
@@ -92,6 +94,56 @@ function addMatterAndFocus() {
   saveDraftSoon();
 }
 
+function createRequestId() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return `request-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getReportStatus(apiUrl, requestId) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `__reportStatus_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const timeout = setTimeout(() => cleanup(new Error("La consulta de estado tardó demasiado.")), 8000);
+
+    function cleanup(error, result) {
+      clearTimeout(timeout);
+      script.remove();
+      delete window[callbackName];
+      if (error) reject(error);
+      else resolve(result);
+    }
+
+    window[callbackName] = (result) => cleanup(null, result);
+    const url = new URL(apiUrl);
+    url.searchParams.set("action", "status");
+    url.searchParams.set("requestId", requestId);
+    url.searchParams.set("callback", callbackName);
+    script.src = url.toString();
+    script.onerror = () => cleanup(new Error("No se pudo consultar el estado del reporte."));
+    document.head.append(script);
+  });
+}
+
+async function waitForReportStatus(apiUrl, requestId) {
+  for (let attempt = 0; attempt < STATUS_POLL_ATTEMPTS; attempt += 1) {
+    try {
+      const result = await getReportStatus(apiUrl, requestId);
+      if (result.status === "success" || result.status === "error") return result;
+    } catch (error) {
+      if (attempt === STATUS_POLL_ATTEMPTS - 1) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, STATUS_POLL_INTERVAL));
+  }
+  throw new Error("No pudimos confirmar el guardado. Tu borrador sigue disponible.");
+}
+
+function resetReportForm() {
+  form.reset();
+  mattersList.replaceChildren();
+  form.reportDate.value = todayLocal();
+  createMatter();
+}
+
 async function submitReport(event) {
   event.preventDefault();
   if (!form.reportValidity()) {
@@ -106,21 +158,25 @@ async function submitReport(event) {
   }
   saveButton.disabled = true;
   saveButton.firstElementChild.textContent = "Guardando…";
+  const requestId = createRequestId();
+  const report = collectReport();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(report));
+  saveStatus.textContent = "Guardando reporte…";
   try {
     await fetch(apiUrl, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "saveReport", ...collectReport() })
+      body: JSON.stringify({ action: "saveReport", requestId, ...report })
     });
+    const result = await waitForReportStatus(apiUrl, requestId);
+    if (result.status === "error") throw new Error(result.error || "Google Sheets rechazó el reporte.");
     localStorage.removeItem(STORAGE_KEY);
-    saveStatus.textContent = "Reporte enviado";
-    showToast("Reporte enviado. Puedes confirmar el registro en Google Sheets.");
-    form.reset();
-    mattersList.replaceChildren();
-    form.reportDate.value = todayLocal();
-    createMatter();
+    saveStatus.textContent = `Guardado · ${result.reportId}`;
+    showToast(`Reporte guardado correctamente · ${result.reportId}`);
+    resetReportForm();
   } catch (error) {
+    saveStatus.textContent = "No se pudo guardar";
     showToast(error.message || "No se pudo conectar. Tu borrador sigue guardado.", true);
   } finally {
     saveButton.disabled = false;

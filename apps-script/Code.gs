@@ -5,21 +5,70 @@ const SETTINGS = {
   GENERATE_PDF_ON_SAVE: false
 };
 
-function doGet() {
-  return jsonResponse_({ ok: true, service: 'Bitácora API', version: 1 });
+function doGet(event) {
+  const action = event && event.parameter ? event.parameter.action : '';
+  if (action === 'status') return statusResponse_(event.parameter);
+  return jsonResponse_({ ok: true, service: 'Bitácora API', version: 2 });
 }
 
 function doPost(event) {
+  let requestId = '';
   try {
     const payload = JSON.parse(event.postData.contents || '{}');
+    requestId = normalizeRequestId_(payload.requestId);
     if (payload.action !== 'saveReport') throw new Error('Acción no reconocida.');
+    const previousStatus = readStatus_(requestId);
+    if (previousStatus && previousStatus.status === 'success') {
+      return jsonResponse_({ ok: true, reportId: previousStatus.reportId, duplicate: true });
+    }
+    writeStatus_(requestId, { status: 'processing' });
     validatePayload_(payload);
     const result = saveReport_(payload);
+    writeStatus_(requestId, { status: 'success', reportId: result.reportId, pdfUrl: result.pdfUrl || '' });
     return jsonResponse_({ ok: true, ...result });
   } catch (error) {
     console.error(error);
+    if (requestId) writeStatus_(requestId, { status: 'error', error: safeErrorMessage_(error) });
     return jsonResponse_({ ok: false, error: error.message });
   }
+}
+
+function normalizeRequestId_(value) {
+  const requestId = String(value || '');
+  if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) throw new Error('El identificador de la solicitud no es válido.');
+  return requestId;
+}
+
+function statusCacheKey_(requestId) {
+  return `report-status-${requestId}`;
+}
+
+function writeStatus_(requestId, status) {
+  CacheService.getScriptCache().put(statusCacheKey_(requestId), JSON.stringify(status), 21600);
+}
+
+function readStatus_(requestId) {
+  const value = CacheService.getScriptCache().get(statusCacheKey_(requestId));
+  return value ? JSON.parse(value) : null;
+}
+
+function statusResponse_(parameters) {
+  try {
+    const requestId = normalizeRequestId_(parameters.requestId);
+    const callback = String(parameters.callback || '');
+    if (!/^[A-Za-z_$][A-Za-z0-9_$]{0,100}$/.test(callback)) throw new Error('Callback no válido.');
+    const status = readStatus_(requestId) || { status: 'pending' };
+    return ContentService
+      .createTextOutput(`${callback}(${JSON.stringify(status)});`)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  } catch (error) {
+    return jsonResponse_({ ok: false, error: safeErrorMessage_(error) });
+  }
+}
+
+function safeErrorMessage_(error) {
+  const message = String(error && error.message ? error.message : 'No se pudo guardar el reporte.');
+  return message.slice(0, 300);
 }
 
 function setupSpreadsheet() {
