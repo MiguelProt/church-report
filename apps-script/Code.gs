@@ -8,6 +8,7 @@ const SETTINGS = {
 function doGet(event) {
   const action = event && event.parameter ? event.parameter.action : '';
   if (action === 'status') return statusResponse_(event.parameter);
+  if (action === 'weeklyReports') return weeklyReportsResponse_(event.parameter);
   return jsonResponse_({ ok: true, service: 'Bitácora API', version: 2 });
 }
 
@@ -69,6 +70,77 @@ function statusResponse_(parameters) {
 function safeErrorMessage_(error) {
   const message = String(error && error.message ? error.message : 'No se pudo guardar el reporte.');
   return message.slice(0, 300);
+}
+
+function weeklyReportsResponse_(parameters) {
+  const callback = String(parameters.callback || '');
+  try {
+    validateCallback_(callback);
+    const configuredKey = getRequiredProperty_('DASHBOARD_ACCESS_KEY');
+    if (String(parameters.accessKey || '') !== configuredKey) throw new Error('La clave de acceso no es correcta.');
+    const weekStart = String(parameters.weekStart || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) throw new Error('La semana solicitada no es válida.');
+    const startDate = new Date(`${weekStart}T12:00:00Z`);
+    if (Number.isNaN(startDate.getTime()) || startDate.getUTCDay() !== 3) throw new Error('La semana debe comenzar en miércoles.');
+    const endDate = new Date(startDate);
+    endDate.setUTCDate(endDate.getUTCDate() + 6);
+    const weekEnd = Utilities.formatDate(endDate, 'UTC', 'yyyy-MM-dd');
+    const reports = getWeeklyReports_(weekStart, weekEnd);
+    return jsonpResponse_(callback, { ok: true, weekStart, weekEnd, reports });
+  } catch (error) {
+    if (/^[A-Za-z_$][A-Za-z0-9_$]{0,100}$/.test(callback)) {
+      return jsonpResponse_(callback, { ok: false, error: safeErrorMessage_(error) });
+    }
+    return jsonResponse_({ ok: false, error: safeErrorMessage_(error) });
+  }
+}
+
+function getWeeklyReports_(weekStart, weekEnd) {
+  const spreadsheet = getSpreadsheet_();
+  const reportsSheet = spreadsheet.getSheetByName(SETTINGS.REPORTS_SHEET);
+  const mattersSheet = spreadsheet.getSheetByName(SETTINGS.MATTERS_SHEET);
+  if (!reportsSheet || !mattersSheet) throw new Error('No se encontraron las pestañas Reportes y Asuntos.');
+  const reportValues = reportsSheet.getDataRange().getValues();
+  const matterValues = mattersSheet.getDataRange().getValues();
+  const mattersByReport = {};
+  matterValues.slice(1).forEach((row) => {
+    const reportId = String(row[0] || '');
+    if (!reportId) return;
+    if (!mattersByReport[reportId]) mattersByReport[reportId] = [];
+    mattersByReport[reportId].push({
+      number: Number(row[1]) || mattersByReport[reportId].length + 1,
+      subject: String(row[2] || ''), challenges: String(row[3] || ''), actions: String(row[4] || ''),
+      results: String(row[5] || ''), resources: String(row[6] || ''), helpers: String(row[7] || ''), notes: String(row[8] || '')
+    });
+  });
+  Object.keys(mattersByReport).forEach((reportId) => mattersByReport[reportId].sort((a, b) => a.number - b.number));
+  return reportValues.slice(1).flatMap((row) => {
+    const reportDate = normalizeSheetDate_(row[4], spreadsheet.getSpreadsheetTimeZone());
+    if (!reportDate || reportDate < weekStart || reportDate > weekEnd) return [];
+    const reportId = String(row[0] || '');
+    return [{
+      reportId,
+      organization: String(row[2] || 'Sin organización'),
+      leader: String(row[3] || 'Sin nombre'),
+      reportDate,
+      matters: mattersByReport[reportId] || []
+    }];
+  }).sort((a, b) => a.organization.localeCompare(b.organization, 'es', { sensitivity: 'base' }) || a.reportDate.localeCompare(b.reportDate) || a.leader.localeCompare(b.leader, 'es', { sensitivity: 'base' }));
+}
+
+function normalizeSheetDate_(value, timezone) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return Utilities.formatDate(value, timezone || 'UTC', 'yyyy-MM-dd');
+  const match = String(value || '').match(/^\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : '';
+}
+
+function validateCallback_(callback) {
+  if (!/^[A-Za-z_$][A-Za-z0-9_$]{0,100}$/.test(callback)) throw new Error('Callback no válido.');
+}
+
+function jsonpResponse_(callback, data) {
+  validateCallback_(callback);
+  return ContentService.createTextOutput(`${callback}(${JSON.stringify(data)});`).setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
 function setupSpreadsheet() {

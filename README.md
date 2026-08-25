@@ -5,6 +5,7 @@ Primera versión de un sistema responsive para capturar reportes con una cantida
 ## Estructura
 
 - `index.html`, `styles.css`, `app.js`: formulario web responsive.
+- `reportes.html`, `reportes.js`: consulta semanal protegida, agrupada por organización.
 - `.env.example`: ejemplo de la variable utilizada al compilar localmente.
 - `scripts/build.mjs`: genera `dist/` e inyecta la URL pública de Apps Script.
 - `.github/workflows/pages.yml`: publicación automática en GitHub Pages.
@@ -19,10 +20,11 @@ Primera versión de un sistema responsive para capturar reportes con una cantida
 3. Copia `apps-script/Code.gs` al archivo `Code.gs` del editor.
 4. En **Configuración del proyecto**, activa la visualización del manifiesto y reemplaza `appsscript.json` con el archivo de este repositorio.
 5. Abre **Configuración del proyecto → Propiedades del script** y agrega `SPREADSHEET_ID` con el ID de la hoja.
-6. Ejecuta manualmente `setupSpreadsheet` una vez y acepta los permisos. Se crearán las pestañas `Reportes`, `Asuntos` y `Plantilla`.
-7. Selecciona **Implementar → Nueva implementación → Aplicación web**.
-8. Configura **Ejecutar como: Yo** y el acceso adecuado para tus usuarios. Para un enlace público, usa **Cualquier persona**. En organizaciones de Google Workspace puede convenir limitarlo al dominio.
-9. Copia la URL que termina en `/exec`.
+6. Agrega también `DASHBOARD_ACCESS_KEY` con una clave privada para consultar `reportes.html`.
+7. Ejecuta manualmente `setupSpreadsheet` una vez y acepta los permisos. Se crearán las pestañas `Reportes`, `Asuntos` y `Plantilla`.
+8. Selecciona **Implementar → Nueva implementación → Aplicación web**.
+9. Configura **Ejecutar como: Yo** y el acceso adecuado para tus usuarios. Para un enlace público, usa **Cualquier persona**. En organizaciones de Google Workspace puede convenir limitarlo al dominio.
+10. Copia la URL que termina en `/exec`.
 
 Cada modificación posterior de Apps Script requiere crear una versión nueva de la implementación.
 

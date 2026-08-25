@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#123c35">
+  <meta name="description" content="Consulta semanal de reportes por organización.">
+  <title>Reportes semanales | Bitácora</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="reports-page">
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="Ir al formulario">
+      <span class="brand-mark" aria-hidden="true">B</span>
+      <span>Bitácora | <small>by Hamaca Web Solutions</small></span>
+    </a>
+    <div class="topbar-actions">
+      <a class="topbar-link" href="index.html">Nuevo reporte</a>
+      <button class="text-button" id="logoutButton" type="button" hidden>Salir</button>
+    </div>
+  </header>
+
+  <main class="reports-main">
+    <section class="access-gate panel" id="accessGate" aria-labelledby="accessTitle">
+      <div class="access-mark" aria-hidden="true">↳</div>
+      <div>
+        <p class="eyebrow">Consulta protegida</p>
+        <h1 id="accessTitle">Abre el archivo semanal.</h1>
+        <p>Ingresa la clave de acceso para consultar los reportes. La clave permanecerá únicamente durante esta sesión.</p>
+        <form class="access-form" id="accessForm">
+          <label>
+            <span>Clave de acceso</span>
+            <input id="accessKey" type="password" autocomplete="current-password" required>
+          </label>
+          <button class="button button-primary" type="submit">Ver reportes →</button>
+        </form>
+        <p class="form-error" id="accessError" role="alert"></p>
+      </div>
+    </section>
+
+    <section id="reportsView" hidden>
+      <div class="reports-hero">
+        <div>
+          <p class="eyebrow">Archivo semanal</p>
+          <h1>Reportes por<br><em>organización.</em></h1>
+        </div>
+        <p>Consulta el trabajo reportado durante cada periodo. Las semanas comienzan el miércoles y terminan el martes.</p>
+      </div>
+
+      <section class="week-bar" aria-label="Selector de semana">
+        <button class="week-arrow" id="previousWeek" type="button" aria-label="Semana anterior">←</button>
+        <div>
+          <span>Semana seleccionada</span>
+          <strong id="weekLabel"></strong>
+        </div>
+        <button class="week-arrow" id="nextWeek" type="button" aria-label="Semana siguiente">→</button>
+      </section>
+
+      <div class="reports-summary" id="reportsSummary" aria-live="polite"></div>
+      <div class="reports-content" id="reportsContent"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <p>Una herramienta creada <span>by Hamaca Web Solutions</span></p>
+      <img src="assets/logos/logo-blanco.svg" alt="Hamaca Web Solutions" width="266" height="58">
+    </div>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="reportes.js"></script>
+</body>
+</html>
+

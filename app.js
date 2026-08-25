@@ -61,12 +61,16 @@ function collectReport() {
   };
 }
 
+function setSaveStatus(message) {
+  if (saveStatus) saveStatus.textContent = message;
+}
+
 function saveDraftSoon() {
-  saveStatus.textContent = "Guardando borrador…";
+  setSaveStatus("Guardando borrador…");
   clearTimeout(draftTimer);
   draftTimer = setTimeout(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(collectReport()));
-    saveStatus.textContent = "Borrador guardado";
+    setSaveStatus("Borrador guardado");
   }, 350);
 }
 
@@ -161,7 +165,7 @@ async function submitReport(event) {
   const requestId = createRequestId();
   const report = collectReport();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(report));
-  saveStatus.textContent = "Guardando reporte…";
+  setSaveStatus("Guardando reporte…");
   try {
     await fetch(apiUrl, {
       method: "POST",
@@ -172,11 +176,11 @@ async function submitReport(event) {
     const result = await waitForReportStatus(apiUrl, requestId);
     if (result.status === "error") throw new Error(result.error || "Google Sheets rechazó el reporte.");
     localStorage.removeItem(STORAGE_KEY);
-    saveStatus.textContent = `Guardado · ${result.reportId}`;
+    setSaveStatus(`Guardado · ${result.reportId}`);
     showToast(`Reporte guardado correctamente · ${result.reportId}`);
     resetReportForm();
   } catch (error) {
-    saveStatus.textContent = "No se pudo guardar";
+    setSaveStatus("No se pudo guardar");
     showToast(error.message || "No se pudo conectar. Tu borrador sigue guardado.", true);
   } finally {
     saveButton.disabled = false;

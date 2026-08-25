@@ -29,7 +29,7 @@ if (!apiUrl || !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(apiU
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await Promise.all([
-  ...["index.html", "styles.css", "app.js"].map((file) => cp(resolve(root, file), resolve(output, file))),
+  ...["index.html", "reportes.html", "styles.css", "app.js", "reportes.js"].map((file) => cp(resolve(root, file), resolve(output, file))),
   cp(resolve(root, "assets"), resolve(output, "assets"), { recursive: true })
 ]);
 await writeFile(resolve(output, "config.js"), `window.REPORT_APP_CONFIG = ${JSON.stringify({ apiUrl })};\n`, "utf8");
