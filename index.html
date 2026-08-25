@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#123c35">
+  <meta name="description" content="Captura de reportes de organizaciones y asuntos de seguimiento.">
+  <title>Bitácora de organización</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#inicio" aria-label="Ir al inicio">
+      <span class="brand-mark" aria-hidden="true">B</span>
+      <span>Bitácora</span>
+    </a>
+    <span class="save-status" id="saveStatus" aria-live="polite">Borrador local</span>
+  </header>
+
+  <main id="inicio">
+    <section class="intro">
+      <p class="eyebrow">Reporte de seguimiento</p>
+      <h1>Lo importante,<br><em>bien acompañado.</em></h1>
+      <p class="intro-copy">Registra cada asunto, las acciones tomadas y el apoyo que hace falta. Tu avance se conserva en este dispositivo hasta que guardes el reporte.</p>
+    </section>
+
+    <form id="reportForm" novalidate>
+      <section class="general panel" aria-labelledby="generalTitle">
+        <div class="section-heading">
+          <span class="section-kicker">Datos generales</span>
+          <h2 id="generalTitle">¿Quién presenta el reporte?</h2>
+        </div>
+        <div class="general-grid">
+          <label>
+            <span>Organización</span>
+            <input id="organization" name="organization" type="text" autocomplete="organization" placeholder="Ej. Mujeres Jóvenes" required>
+          </label>
+          <label>
+            <span>Nombre del líder</span>
+            <input id="leader" name="leader" type="text" autocomplete="name" placeholder="Nombre completo" required>
+          </label>
+          <label>
+            <span>Fecha</span>
+            <input id="reportDate" name="reportDate" type="date" required>
+          </label>
+        </div>
+      </section>
+
+      <section class="matters-section" aria-labelledby="mattersTitle">
+        <div class="matters-heading">
+          <div>
+            <span class="section-kicker">Seguimiento</span>
+            <h2 id="mattersTitle">Asuntos del reporte</h2>
+          </div>
+          <button class="button button-secondary" id="addMatterTop" type="button">+ Agregar asunto</button>
+        </div>
+        <div id="mattersList" class="matters-list"></div>
+        <button class="add-card" id="addMatterBottom" type="button">
+          <span aria-hidden="true">+</span>
+          <strong>Agregar otro asunto</strong>
+          <small>Incluye tantos como necesites</small>
+        </button>
+      </section>
+
+      <footer class="form-footer">
+        <div>
+          <strong id="matterCount">1 asunto</strong>
+          <span>en este reporte</span>
+        </div>
+        <button class="button button-primary" id="saveButton" type="submit">
+          <span>Guardar reporte</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </footer>
+    </form>
+  </main>
+
+  <template id="matterTemplate">
+    <article class="matter-card">
+      <aside class="matter-index" aria-hidden="true">
+        <span>Asunto</span>
+        <strong class="matter-number">01</strong>
+        <i></i>
+      </aside>
+      <div class="matter-body">
+        <div class="matter-title-row">
+          <div>
+            <span class="matter-label">Ficha de seguimiento</span>
+            <h3 class="matter-title">Nuevo asunto</h3>
+          </div>
+          <button class="remove-button" type="button" aria-label="Eliminar asunto">Eliminar</button>
+        </div>
+        <div class="matter-fields">
+          <label class="field-wide">
+            <span>Persona / Asunto</span>
+            <input data-field="subject" type="text" placeholder="¿A quién o qué se dará seguimiento?" required>
+          </label>
+          <label>
+            <span>Problemas o desafíos</span>
+            <textarea data-field="challenges" rows="3" placeholder="Describe la situación actual"></textarea>
+          </label>
+          <label>
+            <span>Qué se ha hecho</span>
+            <textarea data-field="actions" rows="3" placeholder="Acciones realizadas hasta ahora"></textarea>
+          </label>
+          <label>
+            <span>Resultados observados</span>
+            <textarea data-field="results" rows="3" placeholder="Cambios, avances o resultados"></textarea>
+          </label>
+          <label>
+            <span>Recursos necesarios</span>
+            <textarea data-field="resources" rows="3" placeholder="Materiales, tiempo u otros recursos"></textarea>
+          </label>
+          <label>
+            <span>Quién puede ayudar</span>
+            <textarea data-field="helpers" rows="3" placeholder="Personas o equipos que pueden apoyar"></textarea>
+          </label>
+          <label>
+            <span>Notas adicionales</span>
+            <textarea data-field="notes" rows="3" placeholder="Cualquier detalle que falte"></textarea>
+          </label>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+

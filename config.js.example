@@ -1,0 +1,4 @@
+// Este archivo es solo una referencia. `npm run build` genera dist/config.js.
+window.REPORT_APP_CONFIG = {
+  apiUrl: "https://script.google.com/macros/s/REEMPLAZAR_CON_TU_ID/exec"
+};
