@@ -38,6 +38,8 @@ Puedes probar el frontend abriendo `index.html` mediante un servidor local. El f
 
 El envío usa `no-cors` porque las respuestas POST de `ContentService` de Apps Script no se pueden leer de forma fiable desde un origen estático distinto. Cada envío incluye un `requestId` único y el frontend consulta su estado mediante JSONP. El borrador solo se elimina después de recibir una confirmación real de Apps Script; los errores de Sheets se muestran en la interfaz y conservan los datos capturados.
 
+La consulta semanal permite seleccionar uno o varios asuntos y marcarlos como eliminados. La eliminación es lógica: la fila permanece en `Asuntos`, la columna `Deleted` cambia de `0` a `1` y el asunto deja de mostrarse en `reportes.html`. Las filas históricas sin valor se inicializan en `0` al ejecutar `setupSpreadsheet` o realizar la primera actualización.
+
 ## 3. Publicar en GitHub Pages
 
 1. Crea un repositorio vacío en GitHub.

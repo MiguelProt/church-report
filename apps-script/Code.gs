@@ -9,7 +9,7 @@ function doGet(event) {
   const action = event && event.parameter ? event.parameter.action : '';
   if (action === 'status') return statusResponse_(event.parameter);
   if (action === 'weeklyReports') return weeklyReportsResponse_(event.parameter);
-  return jsonResponse_({ ok: true, service: 'Bitácora API', version: 2 });
+  return jsonResponse_({ ok: true, service: 'Bitácora API', version: 4 });
 }
 
 function doPost(event) {
@@ -17,15 +17,23 @@ function doPost(event) {
   try {
     const payload = JSON.parse(event.postData.contents || '{}');
     requestId = normalizeRequestId_(payload.requestId);
-    if (payload.action !== 'saveReport') throw new Error('Acción no reconocida.');
     const previousStatus = readStatus_(requestId);
     if (previousStatus && previousStatus.status === 'success') {
-      return jsonResponse_({ ok: true, reportId: previousStatus.reportId, duplicate: true });
+      return jsonResponse_({ ok: true, ...previousStatus, duplicate: true });
     }
     writeStatus_(requestId, { status: 'processing' });
-    validatePayload_(payload);
-    const result = saveReport_(payload);
-    writeStatus_(requestId, { status: 'success', reportId: result.reportId, pdfUrl: result.pdfUrl || '' });
+    let result;
+    if (payload.action === 'saveReport') {
+      validatePayload_(payload);
+      result = saveReport_(payload);
+    } else if (payload.action === 'softDeleteMatters') {
+      validateDashboardKey_(payload.accessKey);
+      validateDeletionPayload_(payload);
+      result = softDeleteMatters_(payload.selections);
+    } else {
+      throw new Error('Acción no reconocida.');
+    }
+    writeStatus_(requestId, { status: 'success', ...result });
     return jsonResponse_({ ok: true, ...result });
   } catch (error) {
     console.error(error);
@@ -76,8 +84,7 @@ function weeklyReportsResponse_(parameters) {
   const callback = String(parameters.callback || '');
   try {
     validateCallback_(callback);
-    const configuredKey = getRequiredProperty_('DASHBOARD_ACCESS_KEY');
-    if (String(parameters.accessKey || '') !== configuredKey) throw new Error('La clave de acceso no es correcta.');
+    validateDashboardKey_(parameters.accessKey);
     const weekStart = String(parameters.weekStart || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) throw new Error('La semana solicitada no es válida.');
     const startDate = new Date(`${weekStart}T12:00:00Z`);
@@ -105,7 +112,7 @@ function getWeeklyReports_(weekStart, weekEnd) {
   const mattersByReport = {};
   matterValues.slice(1).forEach((row) => {
     const reportId = String(row[0] || '');
-    if (!reportId) return;
+    if (!reportId || Number(row[9]) === 1) return;
     if (!mattersByReport[reportId]) mattersByReport[reportId] = [];
     mattersByReport[reportId].push({
       number: Number(row[1]) || mattersByReport[reportId].length + 1,
@@ -134,6 +141,49 @@ function normalizeSheetDate_(value, timezone) {
   return match ? match[0] : '';
 }
 
+function validateDashboardKey_(accessKey) {
+  const configuredKey = getRequiredProperty_('DASHBOARD_ACCESS_KEY');
+  if (String(accessKey || '') !== configuredKey) throw new Error('La clave de acceso no es correcta.');
+}
+
+function validateDeletionPayload_(payload) {
+  if (!Array.isArray(payload.selections) || !payload.selections.length) throw new Error('Selecciona al menos un asunto.');
+  if (payload.selections.length > 100) throw new Error('Solo puedes actualizar 100 asuntos a la vez.');
+  payload.selections.forEach((selection) => {
+    const number = Number(selection.number);
+    if (!/^[A-Za-z0-9_-]{4,100}$/.test(String(selection.reportId || '')) || !Number.isInteger(number) || number < 1) {
+      throw new Error('La selección contiene un asunto no válido.');
+    }
+  });
+}
+
+function softDeleteMatters_(selections) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    setupSpreadsheet();
+    const sheet = getSpreadsheet_().getSheetByName(SETTINGS.MATTERS_SHEET);
+    if (sheet.getLastRow() < 2) throw new Error('No hay asuntos disponibles para actualizar.');
+    const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues();
+    const requested = new Set(selections.map((selection) => `${selection.reportId}:${Number(selection.number)}`));
+    const matched = new Set();
+    let deletedCount = 0;
+    values.forEach((row) => {
+      const key = `${String(row[0] || '')}:${Number(row[1])}`;
+      if (!requested.has(key)) return;
+      matched.add(key);
+      if (Number(row[9]) !== 1) deletedCount += 1;
+      row[9] = 1;
+    });
+    if (matched.size !== requested.size) throw new Error('Uno o más asuntos seleccionados ya no existen. Actualiza la página.');
+    sheet.getRange(2, 10, values.length, 1).setValues(values.map((row) => [Number(row[9]) === 1 ? 1 : 0]));
+    SpreadsheetApp.flush();
+    return { deletedCount };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function validateCallback_(callback) {
   if (!/^[A-Za-z_$][A-Za-z0-9_$]{0,100}$/.test(callback)) throw new Error('Callback no válido.');
 }
@@ -148,11 +198,19 @@ function setupSpreadsheet() {
   ensureSheet_(spreadsheet, SETTINGS.REPORTS_SHEET, [
     'ID reporte', 'Fecha de captura', 'Organización', 'Nombre del líder', 'Fecha del reporte', 'Cantidad de asuntos'
   ]);
-  ensureSheet_(spreadsheet, SETTINGS.MATTERS_SHEET, [
+  const mattersSheet = ensureSheet_(spreadsheet, SETTINGS.MATTERS_SHEET, [
     'ID reporte', 'Número', 'Persona/Asunto', 'Problemas o desafíos', 'Qué se ha hecho',
-    'Resultados observados', 'Recursos necesarios', 'Quién puede ayudar', 'Notas adicionales'
+    'Resultados observados', 'Recursos necesarios', 'Quién puede ayudar', 'Notas adicionales', 'Deleted'
   ]);
+  initializeDeletedColumn_(mattersSheet);
   ensurePrintSheet_(spreadsheet);
+}
+
+function initializeDeletedColumn_(sheet) {
+  if (sheet.getLastRow() < 2) return;
+  const range = sheet.getRange(2, 10, sheet.getLastRow() - 1, 1);
+  const values = range.getValues().map(([value]) => [Number(value) === 1 ? 1 : 0]);
+  range.setValues(values);
 }
 
 function saveReport_(payload) {
@@ -167,7 +225,7 @@ function saveReport_(payload) {
     ]);
     const rows = payload.matters.map((matter, index) => [
       reportId, index + 1, safeCell_(matter.subject), safeCell_(matter.challenges), safeCell_(matter.actions),
-      safeCell_(matter.results), safeCell_(matter.resources), safeCell_(matter.helpers), safeCell_(matter.notes)
+      safeCell_(matter.results), safeCell_(matter.resources), safeCell_(matter.helpers), safeCell_(matter.notes), 0
     ]);
     const matterSheet = spreadsheet.getSheetByName(SETTINGS.MATTERS_SHEET);
     matterSheet.getRange(matterSheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
@@ -206,12 +264,10 @@ function safeCell_(value) {
 
 function ensureSheet_(spreadsheet, name, headers) {
   const sheet = spreadsheet.getSheetByName(name) || spreadsheet.insertSheet(name);
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, headers.length).setBackground('#123c35').setFontColor('#ffffff').setFontWeight('bold');
-    sheet.autoResizeColumns(1, headers.length);
-  }
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, headers.length).setBackground('#123c35').setFontColor('#ffffff').setFontWeight('bold');
+  sheet.autoResizeColumns(1, headers.length);
   return sheet;
 }
 

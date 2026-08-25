@@ -6,8 +6,12 @@ const accessError = document.querySelector("#accessError");
 const reportsView = document.querySelector("#reportsView");
 const reportsContent = document.querySelector("#reportsContent");
 const reportsSummary = document.querySelector("#reportsSummary");
+const dashboardNotice = document.querySelector("#dashboardNotice");
 const weekLabel = document.querySelector("#weekLabel");
 const logoutButton = document.querySelector("#logoutButton");
+const deleteToolbar = document.querySelector("#deleteToolbar");
+const selectionCount = document.querySelector("#selectionCount");
+const deleteSelectedButton = document.querySelector("#deleteSelected");
 let selectedWeek = startOfCurrentWeek();
 
 function startOfCurrentWeek() {
@@ -67,10 +71,31 @@ function element(tag, className, text) {
   return node;
 }
 
-function matterDetail(matter, index) {
+function createRequestId() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return `request-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function updateSelectionToolbar() {
+  const count = reportsContent.querySelectorAll(".matter-checkbox:checked").length;
+  selectionCount.textContent = `${count} ${count === 1 ? "asunto seleccionado" : "asuntos seleccionados"}`;
+  deleteToolbar.hidden = count === 0;
+}
+
+function matterDetail(matter, index, reportId) {
   const details = element("details", "archive-matter");
   const summary = element("summary");
-  summary.append(element("span", "archive-matter-number", String(index + 1).padStart(2, "0")));
+  const selectLabel = element("label", "matter-select");
+  const checkbox = element("input", "matter-checkbox");
+  checkbox.type = "checkbox";
+  checkbox.dataset.reportId = reportId;
+  checkbox.dataset.number = matter.number;
+  checkbox.setAttribute("aria-label", `Seleccionar ${matter.subject || `asunto ${index + 1}`}`);
+  checkbox.addEventListener("click", (event) => event.stopPropagation());
+  checkbox.addEventListener("change", updateSelectionToolbar);
+  selectLabel.addEventListener("click", (event) => event.stopPropagation());
+  selectLabel.append(checkbox, element("span", "archive-matter-number", String(index + 1).padStart(2, "0")));
+  summary.append(selectLabel);
   summary.append(element("strong", "", matter.subject || "Asunto sin nombre"));
   summary.append(element("span", "archive-matter-toggle", "Ver detalle"));
   details.append(summary);
@@ -103,13 +128,15 @@ function reportCard(report) {
   header.append(identity, meta);
   article.append(header);
   const matters = element("div", "archive-matters");
-  report.matters.forEach((matter, index) => matters.append(matterDetail(matter, index)));
+  report.matters.forEach((matter, index) => matters.append(matterDetail(matter, index, report.reportId)));
   article.append(matters);
   return article;
 }
 
 function renderReports(data) {
   reportsContent.replaceChildren();
+  deleteToolbar.hidden = true;
+  dashboardNotice.textContent = "";
   const reports = data.reports || [];
   const matterCount = reports.reduce((total, report) => total + report.matters.length, 0);
   reportsSummary.textContent = `${reports.length} ${reports.length === 1 ? "reporte" : "reportes"} · ${matterCount} ${matterCount === 1 ? "asunto" : "asuntos"}`;
@@ -139,6 +166,50 @@ function renderReports(data) {
   });
 }
 
+async function waitForMutation(apiUrl, requestId) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const result = await jsonpRequest(apiUrl, { action: "status", requestId });
+    if (result.status === "success" || result.status === "error") return result;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw new Error("No pudimos confirmar el cambio. Actualiza la página antes de intentarlo otra vez.");
+}
+
+async function softDeleteSelected() {
+  const selected = [...reportsContent.querySelectorAll(".matter-checkbox:checked")].map((checkbox) => ({
+    reportId: checkbox.dataset.reportId,
+    number: Number(checkbox.dataset.number)
+  }));
+  if (!selected.length) return;
+  const noun = selected.length === 1 ? "este asunto" : `estos ${selected.length} asuntos`;
+  if (!window.confirm(`¿Marcar ${noun} como eliminados? Dejarán de aparecer, pero permanecerán en Google Sheets.`)) return;
+  const apiUrl = window.REPORT_APP_CONFIG?.apiUrl;
+  const accessKey = sessionStorage.getItem(SESSION_KEY);
+  const requestId = createRequestId();
+  deleteSelectedButton.disabled = true;
+  deleteSelectedButton.textContent = "Actualizando…";
+  dashboardNotice.textContent = "Marcando asuntos como eliminados…";
+  dashboardNotice.classList.remove("error");
+  try {
+    await fetch(apiUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "softDeleteMatters", requestId, accessKey, selections: selected })
+    });
+    const result = await waitForMutation(apiUrl, requestId);
+    if (result.status === "error") throw new Error(result.error || "No se pudieron actualizar los asuntos.");
+    await loadReports();
+    dashboardNotice.textContent = `${selected.length} ${selected.length === 1 ? "asunto marcado" : "asuntos marcados"} como eliminados.`;
+  } catch (error) {
+    dashboardNotice.textContent = error.message;
+    dashboardNotice.classList.add("error");
+  } finally {
+    deleteSelectedButton.disabled = false;
+    deleteSelectedButton.textContent = "Marcar como eliminados";
+  }
+}
+
 async function loadReports() {
   const apiUrl = window.REPORT_APP_CONFIG?.apiUrl;
   const accessKey = sessionStorage.getItem(SESSION_KEY);
@@ -153,12 +224,14 @@ async function loadReports() {
     accessGate.hidden = true;
     reportsView.hidden = false;
     logoutButton.hidden = false;
+    document.documentElement.classList.add("has-dashboard-access");
     accessError.textContent = "";
     renderReports(result);
   } catch (error) {
     reportsSummary.textContent = "";
     if (error.message.toLowerCase().includes("clave")) {
       sessionStorage.removeItem(SESSION_KEY);
+      document.documentElement.classList.remove("has-dashboard-access");
       accessGate.hidden = false;
       reportsView.hidden = true;
       logoutButton.hidden = true;
@@ -181,11 +254,19 @@ document.querySelector("#previousWeek").addEventListener("click", () => { select
 document.querySelector("#nextWeek").addEventListener("click", () => { selectedWeek = addDays(selectedWeek, 7); loadReports(); });
 logoutButton.addEventListener("click", () => {
   sessionStorage.removeItem(SESSION_KEY);
+  document.documentElement.classList.remove("has-dashboard-access");
   reportsView.hidden = true;
   accessGate.hidden = false;
   logoutButton.hidden = true;
   accessInput.value = "";
   accessInput.focus();
 });
+deleteSelectedButton.addEventListener("click", softDeleteSelected);
 
-if (sessionStorage.getItem(SESSION_KEY)) loadReports();
+if (sessionStorage.getItem(SESSION_KEY)) {
+  accessGate.hidden = true;
+  reportsView.hidden = false;
+  logoutButton.hidden = false;
+  reportsSummary.textContent = "Verificando acceso…";
+  loadReports();
+}
