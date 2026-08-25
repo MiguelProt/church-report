@@ -9,6 +9,7 @@ let toastTimer;
 let draftTimer;
 const STATUS_POLL_INTERVAL = 1000;
 const STATUS_POLL_ATTEMPTS = 30;
+const ORGANIZATIONS = ["Cuórum de Élderes", "Escuela Dominical", "Sociedad de Socorro", "Mujeres Jóvenes", "Primaría"];
 
 const fields = ["subject", "challenges", "actions", "results", "resources", "helpers", "notes"];
 
@@ -51,14 +52,22 @@ function renumberMatters() {
 }
 
 function collectReport() {
+  const selectedOrganization = form.organizationSelection.value;
   return {
-    organization: form.organization.value.trim(),
+    organization: selectedOrganization === "Otro" ? form.organization.value.trim() : selectedOrganization,
     leader: form.leader.value.trim(),
     reportDate: form.reportDate.value,
     matters: [...mattersList.children].map((card) => Object.fromEntries(
       fields.map((field) => [field, card.querySelector(`[data-field="${field}"]`).value.trim()])
     ))
   };
+}
+
+function syncOrganizationField() {
+  const isOther = form.organizationSelection.value === "Otro";
+  document.querySelector("#organizationOtherField").hidden = !isOther;
+  form.organization.required = isOther;
+  if (!isOther) form.organization.value = "";
 }
 
 function setSaveStatus(message) {
@@ -77,7 +86,14 @@ function saveDraftSoon() {
 function loadDraft() {
   let draft;
   try { draft = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (_) { draft = null; }
-  form.organization.value = draft?.organization || "";
+  const draftOrganization = draft?.organization || "";
+  if (ORGANIZATIONS.includes(draftOrganization)) {
+    form.organizationSelection.value = draftOrganization;
+  } else if (draftOrganization) {
+    form.organizationSelection.value = "Otro";
+    form.organization.value = draftOrganization;
+  }
+  syncOrganizationField();
   form.leader.value = draft?.leader || "";
   form.reportDate.value = draft?.reportDate || todayLocal();
   (draft?.matters?.length ? draft.matters : [{}]).forEach(createMatter);
@@ -143,6 +159,7 @@ async function waitForReportStatus(apiUrl, requestId) {
 
 function resetReportForm() {
   form.reset();
+  syncOrganizationField();
   mattersList.replaceChildren();
   form.reportDate.value = todayLocal();
   createMatter();
@@ -190,6 +207,11 @@ async function submitReport(event) {
 
 document.querySelector("#addMatterTop").addEventListener("click", addMatterAndFocus);
 document.querySelector("#addMatterBottom").addEventListener("click", addMatterAndFocus);
+form.organizationSelection.addEventListener("change", () => {
+  syncOrganizationField();
+  if (form.organizationSelection.value === "Otro") form.organization.focus();
+  saveDraftSoon();
+});
 form.addEventListener("input", saveDraftSoon);
 form.addEventListener("submit", submitReport);
 loadDraft();

@@ -38,7 +38,19 @@
         <div class="general-grid">
           <label>
             <span>Organización</span>
-            <input id="organization" name="organization" type="text" autocomplete="organization" placeholder="Ej. Mujeres Jóvenes" required>
+            <select id="organizationSelection" name="organizationSelection" required>
+              <option value="">Selecciona una organización</option>
+              <option value="Cuórum de Élderes">Cuórum de Élderes</option>
+              <option value="Escuela Dominical">Escuela Dominical</option>
+              <option value="Sociedad de Socorro">Sociedad de Socorro</option>
+              <option value="Mujeres Jóvenes">Mujeres Jóvenes</option>
+              <option value="Primaría">Primaría</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </label>
+          <label class="field-wide" id="organizationOtherField" hidden>
+            <span>Otra organización</span>
+            <input id="organization" name="organization" type="text" autocomplete="organization" placeholder="Escribe el nombre de la organización">
           </label>
           <label>
             <span>Nombre del líder</span>

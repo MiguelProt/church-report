@@ -9,7 +9,7 @@ function doGet(event) {
   const action = event && event.parameter ? event.parameter.action : '';
   if (action === 'status') return statusResponse_(event.parameter);
   if (action === 'weeklyReports') return weeklyReportsResponse_(event.parameter);
-  return jsonResponse_({ ok: true, service: 'Bitácora API', version: 4 });
+  return jsonResponse_({ ok: true, service: 'Bitácora API', version: 5 });
 }
 
 function doPost(event) {
@@ -125,12 +125,14 @@ function getWeeklyReports_(weekStart, weekEnd) {
     const reportDate = normalizeSheetDate_(row[4], spreadsheet.getSpreadsheetTimeZone());
     if (!reportDate || reportDate < weekStart || reportDate > weekEnd) return [];
     const reportId = String(row[0] || '');
+    const activeMatters = mattersByReport[reportId] || [];
+    if (!activeMatters.length) return [];
     return [{
       reportId,
       organization: String(row[2] || 'Sin organización'),
       leader: String(row[3] || 'Sin nombre'),
       reportDate,
-      matters: mattersByReport[reportId] || []
+      matters: activeMatters
     }];
   }).sort((a, b) => a.organization.localeCompare(b.organization, 'es', { sensitivity: 'base' }) || a.reportDate.localeCompare(b.reportDate) || a.leader.localeCompare(b.leader, 'es', { sensitivity: 'base' }));
 }

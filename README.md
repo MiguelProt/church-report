@@ -39,6 +39,7 @@ Puedes probar el frontend abriendo `index.html` mediante un servidor local. El f
 El envío usa `no-cors` porque las respuestas POST de `ContentService` de Apps Script no se pueden leer de forma fiable desde un origen estático distinto. Cada envío incluye un `requestId` único y el frontend consulta su estado mediante JSONP. El borrador solo se elimina después de recibir una confirmación real de Apps Script; los errores de Sheets se muestran en la interfaz y conservan los datos capturados.
 
 La consulta semanal permite seleccionar uno o varios asuntos y marcarlos como eliminados. La eliminación es lógica: la fila permanece en `Asuntos`, la columna `Deleted` cambia de `0` a `1` y el asunto deja de mostrarse en `reportes.html`. Las filas históricas sin valor se inicializan en `0` al ejecutar `setupSpreadsheet` o realizar la primera actualización.
+Si todos los asuntos de un reporte están marcados como eliminados, el reporte completo se omite de la consulta semanal, aunque sus datos históricos permanecen en Sheets.
 
 ## 3. Publicar en GitHub Pages
 
@@ -64,6 +65,7 @@ El frontend abrirá el PDF generado en otra pestaña después de guardar. Los ar
 ## Datos y seguridad
 
 - Los campos obligatorios son Organización, Nombre del líder, Fecha y Persona/Asunto en cada ficha.
+- Organización se selecciona entre Cuórum de Élderes, Escuela Dominical, Sociedad de Socorro, Mujeres Jóvenes y Primaría. La opción `Otro` habilita un campo obligatorio para guardar un nombre diferente.
 - El backend limita cada reporte a 50 asuntos, recorta textos muy largos y neutraliza fórmulas enviadas a Sheets.
 - `LockService` evita que dos envíos simultáneos mezclen filas.
 - Si el formulario maneja información sensible, limita la aplicación web al dominio de Google Workspace o agrega autenticación antes de compartirla públicamente.

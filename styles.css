@@ -25,7 +25,7 @@ body {
   font-family: "DM Sans", sans-serif;
   line-height: 1.5;
 }
-button, input, textarea { font: inherit; }
+button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 
 .topbar {
@@ -63,11 +63,12 @@ h1 em { color: var(--forest-light); font-weight: 500; }
 .general-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .general-grid label:first-child { grid-column: 1 / -1; }
 label { display: flex; flex-direction: column; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 600; }
-input, textarea {
+input, textarea, select {
   width: 100%; border: 1px solid var(--line); border-radius: 10px; background: #fbfcf9; color: var(--ink); padding: 13px 14px; outline: none; transition: border-color .2s, box-shadow .2s, background .2s;
 }
+select { min-height: 50px; cursor: pointer; }
 textarea { resize: vertical; min-height: 104px; }
-input:focus, textarea:focus { border-color: var(--forest-light); box-shadow: 0 0 0 3px rgba(31, 91, 80, .12); background: white; }
+input:focus, textarea:focus, select:focus { border-color: var(--forest-light); box-shadow: 0 0 0 3px rgba(31, 91, 80, .12); background: white; }
 input::placeholder, textarea::placeholder { color: #98a19d; font-weight: 400; }
 
 .matters-section { padding: 80px 0 0; }
