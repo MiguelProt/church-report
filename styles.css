@@ -95,6 +95,11 @@ input::placeholder, textarea::placeholder { color: #98a19d; font-weight: 400; }
 .form-footer > div { display: flex; flex-direction: column; }
 .form-footer span { font-size: 13px; opacity: .72; }
 .form-footer .button span { opacity: 1; font-size: inherit; }
+.site-footer { background: #212322; color: white; border-top: 4px solid var(--moss); }
+.site-footer-inner { width: min(1160px, calc(100% - 40px)); min-height: 150px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
+.site-footer p { margin: 0; color: rgba(255,255,255,.7); font-size: 13px; letter-spacing: .02em; }
+.site-footer p span { display: block; margin-top: 5px; color: white; font-family: "Newsreader", serif; font-size: 21px; letter-spacing: 0; }
+.site-footer img { display: block; width: min(266px, 46vw); height: auto; }
 .toast { position: fixed; right: 24px; bottom: 24px; max-width: min(380px, calc(100% - 48px)); background: var(--ink); color: white; border-radius: 12px; padding: 15px 18px; box-shadow: 0 16px 40px rgba(0,0,0,.2); transform: translateY(120px); opacity: 0; transition: .3s ease; z-index: 50; }
 .toast.visible { transform: translateY(0); opacity: 1; }
 .toast.error { background: var(--danger); }
@@ -117,5 +122,6 @@ input::placeholder, textarea::placeholder { color: #98a19d; font-weight: 400; }
   .form-footer { position: sticky; bottom: 10px; z-index: 10; margin-bottom: 30px; }
   .form-footer > div { display: none; }
   .form-footer .button { width: 100%; }
+  .site-footer-inner { width: min(100% - 40px, 680px); min-height: 180px; flex-direction: column-reverse; align-items: flex-start; justify-content: center; gap: 22px; }
+  .site-footer img { width: min(266px, 72vw); }
 }
-
