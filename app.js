@@ -5,13 +5,22 @@ const template = document.querySelector("#matterTemplate");
 const saveButton = document.querySelector("#saveButton");
 const saveStatus = document.querySelector("#saveStatus");
 const toast = document.querySelector("#toast");
+const formErrorSummary = document.querySelector("#formErrorSummary");
 let toastTimer;
 let draftTimer;
+let matterSequence = 0;
 const STATUS_POLL_INTERVAL = 1000;
 const STATUS_POLL_ATTEMPTS = 30;
 const ORGANIZATIONS = ["Cuórum de Élderes", "Escuela Dominical", "Sociedad de Socorro", "Mujeres Jóvenes", "Primaría"];
 
 const fields = ["subject", "challenges", "actions", "results", "resources", "helpers", "notes"];
+const requiredMessages = {
+  organizationSelection: "Selecciona una organización.",
+  organization: "Escribe el nombre de la organización.",
+  leader: "Escribe el nombre del líder.",
+  reportDate: "Selecciona la fecha del reporte.",
+  subject: "Escribe la persona o el asunto que requiere seguimiento."
+};
 
 function todayLocal() {
   const date = new Date();
@@ -20,25 +29,92 @@ function todayLocal() {
 
 function createMatter(data = {}) {
   const node = template.content.firstElementChild.cloneNode(true);
+  matterSequence += 1;
+  const matterId = `matter-${matterSequence}`;
   fields.forEach((field) => {
-    node.querySelector(`[data-field="${field}"]`).value = data[field] || "";
+    const control = node.querySelector(`[data-field="${field}"]`);
+    control.id = `${matterId}-${field}`;
+    control.value = data[field] || "";
   });
-  node.querySelector('[data-field="subject"]').addEventListener("input", (event) => {
-    node.querySelector(".matter-title").textContent = event.target.value.trim() || "Nuevo asunto";
-  });
-  node.querySelector(".matter-title").textContent = data.subject || "Nuevo asunto";
+  const subject = node.querySelector('[data-field="subject"]');
+  const title = node.querySelector(".matter-title");
+  const updateTitle = () => {
+    const value = subject.value.trim();
+    title.textContent = value || "Nuevo asunto";
+    title.title = value;
+  };
+  subject.addEventListener("input", updateTitle);
+  updateTitle();
+  if (["resources", "helpers", "notes"].some((field) => data[field])) {
+    node.querySelector(".matter-details").open = true;
+  }
   node.querySelector(".remove-button").addEventListener("click", () => {
     if (mattersList.children.length === 1) {
-      showToast("El reporte necesita al menos un asunto.", true);
+      showToast("El reporte necesita al menos un asunto. Puedes borrar su contenido para empezar de nuevo.", true);
+      subject.focus();
       return;
     }
+    const hasContent = fields.some((field) => node.querySelector(`[data-field="${field}"]`).value.trim());
+    if (hasContent && !window.confirm("¿Eliminar este asunto? La información escrita en esta tarjeta se perderá.")) return;
+    const adjacentCard = node.nextElementSibling || node.previousElementSibling;
+    const nextFocus = adjacentCard?.querySelector('[data-field="subject"]') || document.querySelector("#addMatterBottom");
     node.remove();
     renumberMatters();
     saveDraftSoon();
+    showToast("Asunto eliminado del borrador.");
+    nextFocus.focus();
   });
   mattersList.append(node);
   renumberMatters();
   return node;
+}
+
+function fieldErrorId(field) {
+  return `${field.id}-error`;
+}
+
+function validationMessage(field) {
+  return requiredMessages[field.dataset.field || field.name || field.id] || "Completa este campo.";
+}
+
+function setFieldError(field, message = validationMessage(field)) {
+  const id = fieldErrorId(field);
+  let error = document.getElementById(id);
+  if (!error) {
+    error = document.createElement("span");
+    error.className = "field-error";
+    error.id = id;
+    error.setAttribute("aria-live", "polite");
+    field.closest("label")?.append(error);
+  }
+  error.textContent = message;
+  field.setAttribute("aria-invalid", "true");
+  const describedBy = new Set((field.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+  describedBy.add(id);
+  field.setAttribute("aria-describedby", [...describedBy].join(" "));
+}
+
+function clearFieldError(field) {
+  document.getElementById(fieldErrorId(field))?.remove();
+  field.removeAttribute("aria-invalid");
+  const describedBy = (field.getAttribute("aria-describedby") || "").split(/\s+/).filter((id) => id && id !== fieldErrorId(field));
+  if (describedBy.length) field.setAttribute("aria-describedby", describedBy.join(" "));
+  else field.removeAttribute("aria-describedby");
+}
+
+function validateField(field) {
+  if (field.checkValidity()) {
+    clearFieldError(field);
+    return true;
+  }
+  setFieldError(field);
+  return false;
+}
+
+function validateForm() {
+  const invalidFields = [...form.querySelectorAll("[required]")].filter((field) => !validateField(field));
+  formErrorSummary.hidden = invalidFields.length === 0;
+  return invalidFields;
 }
 
 function renumberMatters() {
@@ -67,7 +143,10 @@ function syncOrganizationField() {
   const isOther = form.organizationSelection.value === "Otro";
   document.querySelector("#organizationOtherField").hidden = !isOther;
   form.organization.required = isOther;
-  if (!isOther) form.organization.value = "";
+  if (!isOther) {
+    form.organization.value = "";
+    clearFieldError(form.organization);
+  }
 }
 
 function setSaveStatus(message) {
@@ -158,6 +237,8 @@ async function waitForReportStatus(apiUrl, requestId) {
 }
 
 function resetReportForm() {
+  form.querySelectorAll('[aria-invalid="true"]').forEach(clearFieldError);
+  formErrorSummary.hidden = true;
   form.reset();
   syncOrganizationField();
   mattersList.replaceChildren();
@@ -167,8 +248,14 @@ function resetReportForm() {
 
 async function submitReport(event) {
   event.preventDefault();
-  if (!form.reportValidity()) {
-    form.querySelector(":invalid")?.focus();
+  const invalidFields = validateForm();
+  if (invalidFields.length) {
+    const firstInvalid = invalidFields[0];
+    firstInvalid.focus({ preventScroll: true });
+    firstInvalid.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "center"
+    });
     showToast("Completa los campos obligatorios para guardar.", true);
     return;
   }
@@ -209,9 +296,18 @@ document.querySelector("#addMatterTop").addEventListener("click", addMatterAndFo
 document.querySelector("#addMatterBottom").addEventListener("click", addMatterAndFocus);
 form.organizationSelection.addEventListener("change", () => {
   syncOrganizationField();
+  validateField(form.organizationSelection);
   if (form.organizationSelection.value === "Otro") form.organization.focus();
   saveDraftSoon();
 });
-form.addEventListener("input", saveDraftSoon);
+form.addEventListener("invalid", (event) => event.preventDefault(), true);
+form.addEventListener("focusout", (event) => {
+  if (event.target.matches("[required]")) validateField(event.target);
+});
+form.addEventListener("input", (event) => {
+  if (event.target.matches("[required]") && event.target.hasAttribute("aria-invalid")) validateField(event.target);
+  if (form.querySelectorAll('[aria-invalid="true"]').length === 0) formErrorSummary.hidden = true;
+  saveDraftSoon();
+});
 form.addEventListener("submit", submitReport);
 loadDraft();

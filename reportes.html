@@ -8,7 +8,7 @@
   <title>Reportes semanales | Bitácora</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,500;6..72,600&amp;display=swap" rel="stylesheet">
   <script>if (sessionStorage.getItem("bitacora-dashboard-access")) document.documentElement.classList.add("has-dashboard-access");</script>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -16,7 +16,8 @@
   <header class="topbar">
     <a class="brand" href="index.html" aria-label="Ir al formulario">
       <span class="brand-mark" aria-hidden="true">B</span>
-      <span>Bitácora | <small>by Hamaca Web Solutions</small></span>
+      <span class="brand-name">Bitácora</span>
+      <small class="brand-credit">by Hamaca Web Solutions</small>
     </a>
     <div class="topbar-actions">
       <a class="topbar-link" href="index.html">Nuevo reporte</a>
@@ -31,14 +32,14 @@
         <p class="eyebrow">Consulta protegida</p>
         <h1 id="accessTitle">Abre el archivo semanal.</h1>
         <p>Ingresa la clave de acceso para consultar los reportes. La clave permanecerá únicamente durante esta sesión.</p>
-        <form class="access-form" id="accessForm">
+        <form class="access-form" id="accessForm" novalidate>
           <label>
             <span>Clave de acceso</span>
-            <input id="accessKey" type="password" autocomplete="current-password" required>
+            <input id="accessKey" type="password" autocomplete="current-password" required aria-describedby="accessError">
           </label>
           <button class="button button-primary" type="submit">Ver reportes →</button>
         </form>
-        <p class="form-error" id="accessError" role="alert"></p>
+        <p class="form-error" id="accessError" aria-live="assertive" hidden></p>
       </div>
     </section>
 
@@ -72,8 +73,11 @@
 
   <footer class="site-footer">
     <div class="site-footer-inner">
-      <p>Una herramienta creada <span>by Hamaca Web Solutions</span></p>
-      <img src="assets/logos/logo-blanco.svg" alt="Hamaca Web Solutions" width="266" height="58">
+      <div class="site-footer-brand">
+        <img src="assets/logos/logo-icono-green.svg" alt="" width="64" height="41">
+        <p><span>by</span> Hamaca Web Solutions</p>
+      </div>
+      <span class="site-footer-context">Bitácora de seguimiento</span>
     </div>
   </footer>
 

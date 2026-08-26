@@ -14,6 +14,14 @@ const selectionCount = document.querySelector("#selectionCount");
 const deleteSelectedButton = document.querySelector("#deleteSelected");
 let selectedWeek = startOfCurrentWeek();
 
+function setAccessMessage(message, isError = true) {
+  accessError.textContent = message;
+  accessError.hidden = !message;
+  accessError.classList.toggle("is-status", !isError);
+  if (message && isError) accessInput.setAttribute("aria-invalid", "true");
+  else accessInput.removeAttribute("aria-invalid");
+}
+
 function startOfCurrentWeek() {
   const date = new Date();
   date.setHours(12, 0, 0, 0);
@@ -225,7 +233,7 @@ async function loadReports() {
     reportsView.hidden = false;
     logoutButton.hidden = false;
     document.documentElement.classList.add("has-dashboard-access");
-    accessError.textContent = "";
+    setAccessMessage("");
     renderReports(result);
   } catch (error) {
     reportsSummary.textContent = "";
@@ -235,10 +243,10 @@ async function loadReports() {
       accessGate.hidden = false;
       reportsView.hidden = true;
       logoutButton.hidden = true;
-      accessError.textContent = error.message;
+      setAccessMessage(error.message);
       accessInput.focus();
     } else {
-      if (reportsView.hidden) accessError.textContent = error.message;
+      if (reportsView.hidden) setAccessMessage(error.message);
       else reportsContent.append(element("p", "archive-load-error", error.message));
     }
   }
@@ -246,9 +254,18 @@ async function loadReports() {
 
 accessForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  sessionStorage.setItem(SESSION_KEY, accessInput.value);
-  accessError.textContent = "Verificando…";
+  const key = accessInput.value.trim();
+  if (!key) {
+    setAccessMessage("Ingresa la clave de acceso para continuar.");
+    accessInput.focus();
+    return;
+  }
+  sessionStorage.setItem(SESSION_KEY, key);
+  setAccessMessage("Verificando acceso…", false);
   await loadReports();
+});
+accessInput.addEventListener("input", () => {
+  if (accessInput.value.trim() && accessInput.hasAttribute("aria-invalid")) setAccessMessage("");
 });
 document.querySelector("#previousWeek").addEventListener("click", () => { selectedWeek = addDays(selectedWeek, -7); loadReports(); });
 document.querySelector("#nextWeek").addEventListener("click", () => { selectedWeek = addDays(selectedWeek, 7); loadReports(); });
@@ -259,6 +276,7 @@ logoutButton.addEventListener("click", () => {
   accessGate.hidden = false;
   logoutButton.hidden = true;
   accessInput.value = "";
+  setAccessMessage("");
   accessInput.focus();
 });
 deleteSelectedButton.addEventListener("click", softDeleteSelected);

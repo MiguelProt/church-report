@@ -8,16 +8,18 @@
   <title>Bitácora by Hamaca Web Solutions</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,500;6..72,600&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#inicio" aria-label="Ir al inicio">
       <span class="brand-mark" aria-hidden="true">B</span>
-      <span>Bitácora | <small>by Hamaca Web Solutions</small></span>
+      <span class="brand-name">Bitácora</span>
+      <small class="brand-credit">by Hamaca Web Solutions</small>
     </a>
     <div class="topbar-actions">
+      <span class="save-status" id="saveStatus" aria-live="polite">Borrador local</span>
       <a class="topbar-link" href="reportes.html">Ver reportes</a>
     </div>
   </header>
@@ -30,6 +32,9 @@
     </section>
 
     <form id="reportForm" novalidate>
+      <div class="form-error-summary" id="formErrorSummary" role="alert" tabindex="-1" hidden>
+        Completa los campos obligatorios para guardar.
+      </div>
       <section class="general panel" aria-labelledby="generalTitle">
         <div class="section-heading">
           <span class="section-kicker">Datos generales</span>
@@ -94,8 +99,11 @@
 
   <footer class="site-footer">
     <div class="site-footer-inner">
-      <p>Una herramienta creada <span>by Hamaca Web Solutions</span></p>
-      <img src="assets/logos/logo-blanco.svg" alt="Hamaca Web Solutions" width="266" height="58">
+      <div class="site-footer-brand">
+        <img src="assets/logos/logo-icono-green.svg" alt="" width="64" height="41">
+        <p><span>by</span> Hamaca Web Solutions</p>
+      </div>
+      <span class="site-footer-context">Bitácora de seguimiento</span>
     </div>
   </footer>
 
@@ -104,11 +112,11 @@
       <aside class="matter-index" aria-hidden="true">
         <span>Asunto</span>
         <strong class="matter-number">01</strong>
-        <i></i>
+        <div class="matter-index-line"></div>
       </aside>
       <div class="matter-body">
         <div class="matter-title-row">
-          <div>
+          <div class="matter-title-copy">
             <span class="matter-label">Ficha de seguimiento</span>
             <h3 class="matter-title">Nuevo asunto</h3>
           </div>
@@ -131,18 +139,26 @@
             <span>Resultados observados</span>
             <textarea data-field="results" rows="3" placeholder="Cambios, avances o resultados"></textarea>
           </label>
-          <label>
-            <span>Recursos necesarios</span>
-            <textarea data-field="resources" rows="3" placeholder="Materiales, tiempo u otros recursos"></textarea>
-          </label>
-          <label>
-            <span>Quién puede ayudar</span>
-            <textarea data-field="helpers" rows="3" placeholder="Personas o equipos que pueden apoyar"></textarea>
-          </label>
-          <label>
-            <span>Notas adicionales</span>
-            <textarea data-field="notes" rows="3" placeholder="Cualquier detalle que falte"></textarea>
-          </label>
+          <details class="matter-details field-wide">
+            <summary>
+              <span>Más detalles</span>
+              <small>Recursos, personas de apoyo y notas</small>
+            </summary>
+            <div class="matter-details-grid">
+              <label>
+                <span>Recursos necesarios</span>
+                <textarea data-field="resources" rows="3" placeholder="Materiales, tiempo u otros recursos"></textarea>
+              </label>
+              <label>
+                <span>Quién puede ayudar</span>
+                <textarea data-field="helpers" rows="3" placeholder="Personas o equipos que pueden apoyar"></textarea>
+              </label>
+              <label class="field-wide">
+                <span>Notas adicionales</span>
+                <textarea data-field="notes" rows="3" placeholder="Cualquier detalle que falte"></textarea>
+              </label>
+            </div>
+          </details>
         </div>
       </div>
     </article>
