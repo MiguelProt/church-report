@@ -20,7 +20,18 @@ Primera versión de un sistema responsive para capturar reportes con una cantida
 3. Copia `apps-script/Code.gs` al archivo `Code.gs` del editor.
 4. En **Configuración del proyecto**, activa la visualización del manifiesto y reemplaza `appsscript.json` con el archivo de este repositorio.
 5. Abre **Configuración del proyecto → Propiedades del script** y agrega `SPREADSHEET_ID` con el ID de la hoja.
-6. Agrega también `DASHBOARD_ACCESS_KEY` con una clave privada para consultar `reportes.html`.
+6. Agrega las siguientes Propiedades del script para controlar el acceso a `reportes.html`:
+
+   | Propiedad | Alcance |
+   | --- | --- |
+   | `DASHBOARD_ACCESS_KEY` | Todos los reportes |
+   | `SOCIETY_RELIEF_ACCESS_KEY` | Sociedad de Socorro |
+   | `ELDERS_QUORUM_ACCESS_KEY` | Cuórum de Élderes |
+   | `SUNDAY_SCHOOL_ACCESS_KEY` | Escuela Dominical |
+   | `YOUNG_WOMEN_ACCESS_KEY` | Mujeres Jóvenes |
+   | `PRIMARY_ACCESS_KEY` | Primaría |
+
+   Asigna a cada propiedad su clave correspondiente directamente en Apps Script; no guardes las claves en el repositorio. No existe una clave propia para `Otro`: sus reportes solo pueden consultarse con el acceso general.
 7. Ejecuta manualmente `setupSpreadsheet` una vez y acepta los permisos. Se crearán las pestañas `Reportes`, `Asuntos` y `Plantilla`.
 8. Selecciona **Implementar → Nueva implementación → Aplicación web**.
 9. Configura **Ejecutar como: Yo** y el acceso adecuado para tus usuarios. Para un enlace público, usa **Cualquier persona**. En organizaciones de Google Workspace puede convenir limitarlo al dominio.
@@ -40,6 +51,7 @@ El envío usa `no-cors` porque las respuestas POST de `ContentService` de Apps S
 
 La consulta semanal permite seleccionar uno o varios asuntos y marcarlos como eliminados. La eliminación es lógica: la fila permanece en `Asuntos`, la columna `Deleted` cambia de `0` a `1` y el asunto deja de mostrarse en `reportes.html`. Las filas históricas sin valor se inicializan en `0` al ejecutar `setupSpreadsheet` o realizar la primera actualización.
 Si todos los asuntos de un reporte están marcados como eliminados, el reporte completo se omite de la consulta semanal, aunque sus datos históricos permanecen en Sheets.
+Cada acceso de organización se filtra en Apps Script y solo puede consultar o marcar como eliminados los asuntos de esa organización. `DASHBOARD_ACCESS_KEY` es el único acceso general.
 
 ## 3. Publicar en GitHub Pages
 

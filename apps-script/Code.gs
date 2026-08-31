@@ -5,6 +5,14 @@ const SETTINGS = {
   GENERATE_PDF_ON_SAVE: false
 };
 
+const DASHBOARD_ORGANIZATION_ACCESS = [
+  { property: 'SOCIETY_RELIEF_ACCESS_KEY', organization: 'Sociedad de Socorro' },
+  { property: 'ELDERS_QUORUM_ACCESS_KEY', organization: 'Cuórum de Élderes' },
+  { property: 'SUNDAY_SCHOOL_ACCESS_KEY', organization: 'Escuela Dominical' },
+  { property: 'YOUNG_WOMEN_ACCESS_KEY', organization: 'Mujeres Jóvenes' },
+  { property: 'PRIMARY_ACCESS_KEY', organization: 'Primaría' }
+];
+
 function doGet(event) {
   const action = event && event.parameter ? event.parameter.action : '';
   if (action === 'status') return statusResponse_(event.parameter);
@@ -27,9 +35,9 @@ function doPost(event) {
       validatePayload_(payload);
       result = saveReport_(payload);
     } else if (payload.action === 'softDeleteMatters') {
-      validateDashboardKey_(payload.accessKey);
+      const access = authenticateDashboard_(payload.accessKey);
       validateDeletionPayload_(payload);
-      result = softDeleteMatters_(payload.selections);
+      result = softDeleteMatters_(payload.selections, access.organization);
     } else {
       throw new Error('Acción no reconocida.');
     }
@@ -84,7 +92,7 @@ function weeklyReportsResponse_(parameters) {
   const callback = String(parameters.callback || '');
   try {
     validateCallback_(callback);
-    validateDashboardKey_(parameters.accessKey);
+    const access = authenticateDashboard_(parameters.accessKey);
     const weekStart = String(parameters.weekStart || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) throw new Error('La semana solicitada no es válida.');
     const startDate = new Date(`${weekStart}T12:00:00Z`);
@@ -92,7 +100,7 @@ function weeklyReportsResponse_(parameters) {
     const endDate = new Date(startDate);
     endDate.setUTCDate(endDate.getUTCDate() + 6);
     const weekEnd = Utilities.formatDate(endDate, 'UTC', 'yyyy-MM-dd');
-    const reports = getWeeklyReports_(weekStart, weekEnd);
+    const reports = getWeeklyReports_(weekStart, weekEnd, access.organization);
     return jsonpResponse_(callback, { ok: true, weekStart, weekEnd, reports });
   } catch (error) {
     if (/^[A-Za-z_$][A-Za-z0-9_$]{0,100}$/.test(callback)) {
@@ -102,7 +110,7 @@ function weeklyReportsResponse_(parameters) {
   }
 }
 
-function getWeeklyReports_(weekStart, weekEnd) {
+function getWeeklyReports_(weekStart, weekEnd, allowedOrganization) {
   const spreadsheet = getSpreadsheet_();
   const reportsSheet = spreadsheet.getSheetByName(SETTINGS.REPORTS_SHEET);
   const mattersSheet = spreadsheet.getSheetByName(SETTINGS.MATTERS_SHEET);
@@ -125,11 +133,13 @@ function getWeeklyReports_(weekStart, weekEnd) {
     const reportDate = normalizeSheetDate_(row[4], spreadsheet.getSpreadsheetTimeZone());
     if (!reportDate || reportDate < weekStart || reportDate > weekEnd) return [];
     const reportId = String(row[0] || '');
+    const organization = String(row[2] || 'Sin organización');
+    if (allowedOrganization && organization !== allowedOrganization) return [];
     const activeMatters = mattersByReport[reportId] || [];
     if (!activeMatters.length) return [];
     return [{
       reportId,
-      organization: String(row[2] || 'Sin organización'),
+      organization,
       leader: String(row[3] || 'Sin nombre'),
       reportDate,
       matters: activeMatters
@@ -143,9 +153,17 @@ function normalizeSheetDate_(value, timezone) {
   return match ? match[0] : '';
 }
 
-function validateDashboardKey_(accessKey) {
-  const configuredKey = getRequiredProperty_('DASHBOARD_ACCESS_KEY');
-  if (String(accessKey || '') !== configuredKey) throw new Error('La clave de acceso no es correcta.');
+function authenticateDashboard_(accessKey) {
+  const candidate = String(accessKey || '');
+  const properties = PropertiesService.getScriptProperties();
+  const bishopKey = properties.getProperty('DASHBOARD_ACCESS_KEY');
+  if (!bishopKey) throw new Error('Falta configurar la propiedad del script: DASHBOARD_ACCESS_KEY.');
+  if (candidate === bishopKey) return { organization: null };
+  for (const access of DASHBOARD_ORGANIZATION_ACCESS) {
+    const configuredKey = properties.getProperty(access.property);
+    if (configuredKey && candidate === configuredKey) return { organization: access.organization };
+  }
+  throw new Error('La clave de acceso no es correcta.');
 }
 
 function validateDeletionPayload_(payload) {
@@ -159,13 +177,15 @@ function validateDeletionPayload_(payload) {
   });
 }
 
-function softDeleteMatters_(selections) {
+function softDeleteMatters_(selections, allowedOrganization) {
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     setupSpreadsheet();
-    const sheet = getSpreadsheet_().getSheetByName(SETTINGS.MATTERS_SHEET);
+    const spreadsheet = getSpreadsheet_();
+    const sheet = spreadsheet.getSheetByName(SETTINGS.MATTERS_SHEET);
     if (sheet.getLastRow() < 2) throw new Error('No hay asuntos disponibles para actualizar.');
+    const allowedReportIds = allowedOrganization ? getReportIdsForOrganization_(spreadsheet, allowedOrganization) : null;
     const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues();
     const requested = new Set(selections.map((selection) => `${selection.reportId}:${Number(selection.number)}`));
     const matched = new Set();
@@ -173,6 +193,9 @@ function softDeleteMatters_(selections) {
     values.forEach((row) => {
       const key = `${String(row[0] || '')}:${Number(row[1])}`;
       if (!requested.has(key)) return;
+      if (allowedReportIds && !allowedReportIds.has(String(row[0] || ''))) {
+        throw new Error('No tienes permiso para modificar asuntos de otra organización.');
+      }
       matched.add(key);
       if (Number(row[9]) !== 1) deletedCount += 1;
       row[9] = 1;
@@ -184,6 +207,14 @@ function softDeleteMatters_(selections) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function getReportIdsForOrganization_(spreadsheet, organization) {
+  const sheet = spreadsheet.getSheetByName(SETTINGS.REPORTS_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return new Set();
+  return new Set(sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues().flatMap((row) => (
+    String(row[2] || '') === organization ? [String(row[0] || '')] : []
+  )));
 }
 
 function validateCallback_(callback) {
