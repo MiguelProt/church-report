@@ -101,7 +101,7 @@ function weeklyReportsResponse_(parameters) {
     endDate.setUTCDate(endDate.getUTCDate() + 6);
     const weekEnd = Utilities.formatDate(endDate, 'UTC', 'yyyy-MM-dd');
     const reports = getWeeklyReports_(weekStart, weekEnd, access.organization);
-    return jsonpResponse_(callback, { ok: true, weekStart, weekEnd, reports });
+    return jsonpResponse_(callback, { ok: true, weekStart, weekEnd, organizationScope: access.organization, reports });
   } catch (error) {
     if (/^[A-Za-z_$][A-Za-z0-9_$]{0,100}$/.test(callback)) {
       return jsonpResponse_(callback, { ok: false, error: safeErrorMessage_(error) });

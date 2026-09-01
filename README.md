@@ -52,6 +52,7 @@ El envío usa `no-cors` porque las respuestas POST de `ContentService` de Apps S
 La consulta semanal permite seleccionar uno o varios asuntos y marcarlos como eliminados. La eliminación es lógica: la fila permanece en `Asuntos`, la columna `Deleted` cambia de `0` a `1` y el asunto deja de mostrarse en `reportes.html`. Las filas históricas sin valor se inicializan en `0` al ejecutar `setupSpreadsheet` o realizar la primera actualización.
 Si todos los asuntos de un reporte están marcados como eliminados, el reporte completo se omite de la consulta semanal, aunque sus datos históricos permanecen en Sheets.
 Cada acceso de organización se filtra en Apps Script y solo puede consultar o marcar como eliminados los asuntos de esa organización. `DASHBOARD_ACCESS_KEY` es el único acceso general.
+Al abrir el formulario desde una sesión organizacional validada, el selector de organización queda fijado y bloqueado en esa organización. Con el acceso general, el selector permanece disponible.
 
 ## 3. Publicar en GitHub Pages
 

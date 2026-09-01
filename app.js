@@ -1,4 +1,5 @@
 const STORAGE_KEY = "bitacora-reporte-draft-v1";
+const SESSION_SCOPE_KEY = "bitacora-dashboard-organization";
 const form = document.querySelector("#reportForm");
 const mattersList = document.querySelector("#mattersList");
 const template = document.querySelector("#matterTemplate");
@@ -12,6 +13,14 @@ let matterSequence = 0;
 const STATUS_POLL_INTERVAL = 1000;
 const STATUS_POLL_ATTEMPTS = 30;
 const ORGANIZATIONS = ["Cuórum de Élderes", "Escuela Dominical", "Sociedad de Socorro", "Mujeres Jóvenes", "Primaría"];
+let sessionOrganization = null;
+
+try {
+  const storedOrganization = JSON.parse(sessionStorage.getItem(SESSION_SCOPE_KEY));
+  if (ORGANIZATIONS.includes(storedOrganization)) sessionOrganization = storedOrganization;
+} catch (_) {
+  sessionOrganization = null;
+}
 
 const fields = ["subject", "challenges", "actions", "results", "resources", "helpers", "notes"];
 const requiredMessages = {
@@ -149,6 +158,14 @@ function syncOrganizationField() {
   }
 }
 
+function applySessionOrganization() {
+  if (!sessionOrganization) return;
+  form.organizationSelection.value = sessionOrganization;
+  form.organizationSelection.disabled = true;
+  form.organizationSelection.setAttribute("aria-readonly", "true");
+  syncOrganizationField();
+}
+
 function setSaveStatus(message) {
   if (saveStatus) saveStatus.textContent = message;
 }
@@ -173,6 +190,7 @@ function loadDraft() {
     form.organization.value = draftOrganization;
   }
   syncOrganizationField();
+  applySessionOrganization();
   form.leader.value = draft?.leader || "";
   form.reportDate.value = draft?.reportDate || todayLocal();
   (draft?.matters?.length ? draft.matters : [{}]).forEach(createMatter);
@@ -241,6 +259,7 @@ function resetReportForm() {
   formErrorSummary.hidden = true;
   form.reset();
   syncOrganizationField();
+  applySessionOrganization();
   mattersList.replaceChildren();
   form.reportDate.value = todayLocal();
   createMatter();

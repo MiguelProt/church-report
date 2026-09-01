@@ -1,4 +1,5 @@
 const SESSION_KEY = "bitacora-dashboard-access";
+const SESSION_SCOPE_KEY = "bitacora-dashboard-organization";
 const accessGate = document.querySelector("#accessGate");
 const accessForm = document.querySelector("#accessForm");
 const accessInput = document.querySelector("#accessKey");
@@ -233,12 +234,14 @@ async function loadReports() {
     reportsView.hidden = false;
     logoutButton.hidden = false;
     document.documentElement.classList.add("has-dashboard-access");
+    sessionStorage.setItem(SESSION_SCOPE_KEY, JSON.stringify(result.organizationScope));
     setAccessMessage("");
     renderReports(result);
   } catch (error) {
     reportsSummary.textContent = "";
     if (error.message.toLowerCase().includes("clave")) {
       sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem(SESSION_SCOPE_KEY);
       document.documentElement.classList.remove("has-dashboard-access");
       accessGate.hidden = false;
       reportsView.hidden = true;
@@ -271,6 +274,7 @@ document.querySelector("#previousWeek").addEventListener("click", () => { select
 document.querySelector("#nextWeek").addEventListener("click", () => { selectedWeek = addDays(selectedWeek, 7); loadReports(); });
 logoutButton.addEventListener("click", () => {
   sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_SCOPE_KEY);
   document.documentElement.classList.remove("has-dashboard-access");
   reportsView.hidden = true;
   accessGate.hidden = false;
